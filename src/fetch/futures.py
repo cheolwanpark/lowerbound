@@ -56,6 +56,9 @@ class FuturesFetcher:
         """
         Fetch and store funding rate data for an asset.
 
+        Note: Binance only provides funding rate history for the last 30 days.
+        Requests for older data will be skipped.
+
         Args:
             asset: Asset symbol (e.g., 'BTC')
             start_time: Start timestamp (inclusive)
@@ -64,6 +67,25 @@ class FuturesFetcher:
         Returns:
             Number of funding rate records stored
         """
+        # Binance API limitation: funding rates only available for last 30 days
+        now = datetime.now(timezone.utc)
+        min_allowed = now - timedelta(days=30)
+
+        if end_time < min_allowed:
+            logger.warning(
+                f"Skipping funding rate fetch for {asset}: requested range "
+                f"{start_time} to {end_time} is older than 30-day limit"
+            )
+            return 0
+
+        # Adjust start_time if it's too old
+        if start_time < min_allowed:
+            logger.warning(
+                f"Adjusting funding rate start_time for {asset} from {start_time} "
+                f"to {min_allowed} (30-day API limit)"
+            )
+            start_time = min_allowed
+
         symbol = self._asset_to_symbol(asset)
         logger.info(f"Fetching funding rates for {asset} from {start_time} to {end_time}")
 
@@ -116,7 +138,12 @@ class FuturesFetcher:
         return await self.fetch_and_store_funding_rates(asset, expected_next, now)
 
     async def fill_funding_rate_gaps(self, asset: str) -> int:
-        """Detect and fill gaps in funding rate data."""
+        """
+        Detect and fill gaps in funding rate data.
+
+        Note: Only fills gaps within the last 30 days (Binance API limitation).
+        Older gaps will be logged but skipped.
+        """
         interval_hours = settings.futures_funding_interval_hours
         gaps = await detect_futures_gaps(asset, "funding_rate", interval_hours)
 
@@ -124,10 +151,33 @@ class FuturesFetcher:
             logger.info(f"No gaps found in funding rates for {asset}")
             return 0
 
-        logger.info(f"Found {len(gaps)} gap(s) in funding rates for {asset}")
-        total_filled = 0
+        # Filter gaps to only those within 30-day window
+        now = datetime.now(timezone.utc)
+        min_allowed = now - timedelta(days=30)
+
+        fillable_gaps = []
+        skipped_gaps = []
 
         for gap_start, gap_end in gaps:
+            if gap_end >= min_allowed:
+                fillable_gaps.append((gap_start, gap_end))
+            else:
+                skipped_gaps.append((gap_start, gap_end))
+
+        if skipped_gaps:
+            logger.info(
+                f"Skipping {len(skipped_gaps)} gap(s) older than 30 days for {asset} "
+                f"(Binance API limitation)"
+            )
+
+        if not fillable_gaps:
+            logger.info(f"No fillable gaps within 30-day window for {asset}")
+            return 0
+
+        logger.info(f"Filling {len(fillable_gaps)} gap(s) in funding rates for {asset}")
+        total_filled = 0
+
+        for gap_start, gap_end in fillable_gaps:
             try:
                 count = await self.fetch_and_store_funding_rates(asset, gap_start, gap_end)
                 total_filled += count
@@ -135,7 +185,7 @@ class FuturesFetcher:
                 logger.error(f"Failed to fill gap {gap_start} to {gap_end} for {asset}: {e}")
                 # Continue with next gap
 
-        logger.info(f"Filled {total_filled} funding rate records across {len(gaps)} gap(s) for {asset}")
+        logger.info(f"Filled {total_filled} funding rate records across {len(fillable_gaps)} gap(s) for {asset}")
         return total_filled
 
     # ==================== Mark Price Klines Methods ====================
