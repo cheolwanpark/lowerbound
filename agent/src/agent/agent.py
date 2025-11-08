@@ -210,6 +210,9 @@ class ChatAgent:
             else:
                 lines.append(f"Assistant: {msg.message}")
                 if msg.reasonings:
-                    lines.append(f"  (Reasoning: {'; '.join(msg.reasonings)})")
+                    # reasonings is a list of dicts with 'summary', 'detail', 'timestamp'
+                    reasoning_summaries = [r.get('summary', '') for r in msg.reasonings if isinstance(r, dict)]
+                    if reasoning_summaries:
+                        lines.append(f"  (Reasoning: {'; '.join(reasoning_summaries)})")
 
         return "\n\n".join(lines)

@@ -117,7 +117,8 @@ Example: [
 
         # Update context (for agent's internal use)
         self.context.current_portfolio = positions
-        self.context.reasonings.append(f"Portfolio Update: {explanation}")
+        # NOTE: Don't append to reasonings here - portfolio updates are tracked via portfolio_versions
+        # and toolcalls, not as reasoning steps
 
         # Write to Redis IMMEDIATELY as new version for real-time visibility
         version_number = None

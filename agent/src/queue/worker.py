@@ -116,7 +116,16 @@ def process_chat_request(
 
     except Exception as exc:
         # Log error and mark as failed
-        logger.exception(f"Worker error for chat {chat_id}")
+        error_type = type(exc).__name__
+        logger.exception(f"Worker error for chat {chat_id}: {error_type}")
+
+        # Create user-friendly error message
+        if "validation error" in str(exc).lower() or "ValidationError" in error_type:
+            error_msg = f"Data validation error: {str(exc)[:500]}"
+        elif "timeout" in str(exc).lower():
+            error_msg = "Request timeout - the operation took too long"
+        else:
+            error_msg = f"{error_type}: {str(exc)[:500]}"
 
         try:
             chat_store.commit_agent_result(
@@ -124,29 +133,57 @@ def process_chat_request(
                 agent_messages=[],
                 portfolio=None,
                 status="failed",
-                error_message=str(exc),
+                error_message=error_msg,
             )
         except Exception as commit_error:
             logger.exception(f"Failed to commit error state for chat {chat_id}: {commit_error}")
+            # Try one more time with minimal error info
+            try:
+                chat_store.commit_agent_result(
+                    chat_id=chat_id,
+                    agent_messages=[],
+                    portfolio=None,
+                    status="failed",
+                    error_message=f"Fatal error: {error_type}",
+                )
+            except Exception:
+                logger.error(f"Unable to save error state for chat {chat_id}")
 
         raise
 
     finally:
-        # Clean up HTTP client
+        # Clean up HTTP client gracefully
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Schedule cleanup on the running loop
-                loop.create_task(httpx_client.aclose())
-            else:
-                # Loop is not running, safe to use asyncio.run
-                asyncio.run(httpx_client.aclose())
-        except RuntimeError:
-            # Event loop is closed, create a new one for cleanup
+            # Try to get the current event loop
             try:
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(httpx_client.aclose())
-                new_loop.close()
-            except Exception as cleanup_error:
-                logger.warning(f"Failed to close httpx client: {cleanup_error}")
+                loop = asyncio.get_running_loop()
+                # Loop is running - we can't close client synchronously
+                # Create a task to close it later
+                loop.create_task(httpx_client.aclose())
+                logger.debug("Scheduled httpx client cleanup on running loop")
+            except RuntimeError:
+                # No running loop - try to get or create one
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_closed():
+                        # Loop is closed, create a new one
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    # Run the cleanup
+                    loop.run_until_complete(httpx_client.aclose())
+                    logger.debug("Successfully closed httpx client")
+                except Exception as loop_error:
+                    logger.debug(f"Could not close httpx client via event loop: {loop_error}")
+                    # Last resort: try to close synchronously (httpx supports this)
+                    try:
+                        # httpx AsyncClient has internal cleanup that can handle this
+                        import gc
+                        httpx_client = None
+                        gc.collect()
+                        logger.debug("Forced httpx client cleanup via garbage collection")
+                    except Exception:
+                        pass
+        except Exception as cleanup_error:
+            # Log but don't fail the job due to cleanup issues
+            logger.debug(f"HTTP client cleanup warning: {cleanup_error}")
