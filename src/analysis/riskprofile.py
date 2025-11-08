@@ -670,15 +670,35 @@ def _calculate_lending_metrics(
     total_debt_value = sum(abs(p.get("value", 0.0)) for p in borrow_positions)
 
     # Calculate LTV
-    ltv = valuation.calculate_account_ltv(supply_positions, borrow_positions)
+    ltv = valuation.calculate_account_ltv(total_debt_value, total_collateral_value)
 
     # Calculate health factor
-    health_factor = valuation.calculate_health_factor(supply_positions, borrow_positions)
+    # Get liquidation thresholds from settings
+    liquidation_thresholds = settings.AAVE_LIQUIDATION_THRESHOLDS
+    health_factor = valuation.calculate_health_factor(
+        supply_positions, total_debt_value, liquidation_thresholds
+    )
 
     # Calculate net APY
     net_apy, weighted_supply_apy, weighted_borrow_apy = metrics.calculate_net_apy(
         supply_positions, borrow_positions, current_rates
     )
+
+    # Calculate additional metrics
+    net_lending_value = total_collateral_value - total_debt_value
+
+    # Calculate max safe borrow (based on max LTV)
+    # Get max LTV from settings (use weighted average of collateral assets)
+    max_ltv_values = settings.AAVE_MAX_LTV
+    weighted_max_ltv = 0.0
+    if total_collateral_value > 0:
+        for pos in supply_positions:
+            asset = pos["asset"]
+            value = pos.get("value", 0.0)
+            max_ltv = max_ltv_values.get(asset, 0.75)  # Default to 75% if unknown
+            weighted_max_ltv += (value / total_collateral_value) * max_ltv
+
+    max_safe_borrow = (total_collateral_value * weighted_max_ltv) - total_debt_value
 
     # Validate data freshness
     latest_timestamp = pd.to_datetime(aligned_data.iloc[-1]["timestamp"])
@@ -691,13 +711,16 @@ def _calculate_lending_metrics(
     )
 
     return {
-        "total_collateral_value": total_collateral_value,
-        "total_debt_value": total_debt_value,
-        "ltv_ratio": ltv,
+        "total_supplied_value": total_collateral_value,
+        "total_borrowed_value": total_debt_value,
+        "net_lending_value": net_lending_value,
+        "current_ltv": ltv,
         "health_factor": health_factor,
+        "max_safe_borrow": max(0.0, max_safe_borrow),  # Can't be negative
         "net_apy": net_apy,
         "weighted_supply_apy": weighted_supply_apy,
         "weighted_borrow_apy": weighted_borrow_apy,
+        "data_timestamp": latest_timestamp,
         "data_age_hours": age_hours,
-        "data_freshness_warning": freshness_warning,
+        "data_warning": freshness_warning,
     }
