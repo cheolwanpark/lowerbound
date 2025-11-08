@@ -27,9 +27,12 @@ export default function Home() {
         description: "Your new chat has been created successfully",
       })
       setIsNewChatModalOpen(false)
+
+      // Refresh chat list first to ensure the new chat is in the list
+      await refetch()
+
+      // Then select the chat - this ensures polling starts immediately
       setSelectedChatId(newChat.id)
-      // Refresh chat list to include the new chat
-      refetch()
     } else {
       toast({
         title: "Error",

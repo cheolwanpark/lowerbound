@@ -45,6 +45,7 @@ class ChatStore:
             strategy=request.strategy,
             target_apy=request.target_apy,
             max_drawdown=request.max_drawdown,
+            title=request.title,
             messages=[],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
@@ -118,6 +119,24 @@ class ChatStore:
         self._write_record(record)
         return record
 
+    def add_system_message(self, chat_id: str, message: str) -> ChatRecord:
+        """Add system message (for parameter changes, notifications, etc).
+
+        Args:
+            chat_id: Chat identifier
+            message: System message text
+
+        Returns:
+            Updated chat record
+        """
+        record = self._get_record(chat_id)
+        record.messages.append(
+            ChatMessage(type="system", message=message, timestamp=datetime.utcnow())
+        )
+        record.updated_at = datetime.utcnow()
+        self._write_record(record)
+        return record
+
     def mark_processing(self, chat_id: str) -> ChatRecord:
         """Mark chat as processing.
 
@@ -132,6 +151,45 @@ class ChatStore:
         record.updated_at = datetime.utcnow()
         self._write_record(record)
         return record
+
+    def update_parameters(
+        self,
+        chat_id: str,
+        strategy: Optional[str] = None,
+        target_apy: Optional[float] = None,
+        max_drawdown: Optional[float] = None,
+    ) -> tuple[ChatRecord, dict[str, tuple[any, any]]]:
+        """Update portfolio configuration parameters.
+
+        Args:
+            chat_id: Chat identifier
+            strategy: New strategy (if provided)
+            target_apy: New target APY (if provided)
+            max_drawdown: New max drawdown (if provided)
+
+        Returns:
+            Tuple of (updated chat record, dict of changes with old/new values)
+        """
+        record = self._get_record(chat_id)
+        changes = {}
+
+        if strategy is not None and strategy != record.strategy:
+            changes["strategy"] = (record.strategy, strategy)
+            record.strategy = strategy
+
+        if target_apy is not None and target_apy != record.target_apy:
+            changes["target_apy"] = (record.target_apy, target_apy)
+            record.target_apy = target_apy
+
+        if max_drawdown is not None and max_drawdown != record.max_drawdown:
+            changes["max_drawdown"] = (record.max_drawdown, max_drawdown)
+            record.max_drawdown = max_drawdown
+
+        if changes:
+            record.updated_at = datetime.utcnow()
+            self._write_record(record)
+
+        return record, changes
 
     def append_reasoning(self, chat_id: str, reasoning: dict) -> ChatRecord:
         """Append reasoning to the latest agent message (real-time streaming).
@@ -311,5 +369,6 @@ class ChatStore:
         pipe = self.redis.pipeline()
         pipe.set(key, payload)
         pipe.expire(key, self.TTL_SECONDS)
-        pipe.zadd(self.INDEX_KEY, {record.id: record.created_at.timestamp()})
+        # Index by updated_at to show most recently updated chats first
+        pipe.zadd(self.INDEX_KEY, {record.id: record.updated_at.timestamp()})
         pipe.execute()

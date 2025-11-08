@@ -23,6 +23,8 @@ export function useChatDetail(chatId: string | null): UseChatDetailReturn {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const chatIdRef = useRef<string | null>(null)
+  const previousStatusRef = useRef<string | null>(null)
 
   const fetchChat = useCallback(async () => {
     if (!chatId) {
@@ -70,16 +72,49 @@ export function useChatDetail(chatId: string | null): UseChatDetailReturn {
 
   // Set up polling for processing chats
   useEffect(() => {
-    if (!chatId) return
-
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
+    if (!chatId) {
+      // Clear interval when chatId is null
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      return
     }
 
-    // Only poll if chat is processing or not yet loaded
-    if (!chat || chat.status === "processing") {
+    // If chatId changed, clear existing interval and reset
+    if (chatIdRef.current !== chatId) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      chatIdRef.current = chatId
+      previousStatusRef.current = null
+    }
+
+    // Restart polling if status changed from completed/failed to queued/processing
+    const currentStatus = chat?.status
+    const previousStatus = previousStatusRef.current
+
+    if (currentStatus && previousStatus) {
+      const wasInactive = previousStatus === "completed" || previousStatus === "failed"
+      const isNowActive = currentStatus === "queued" || currentStatus === "processing"
+
+      if (wasInactive && isNowActive && !intervalRef.current) {
+        // Restart polling when chat becomes active again
+        intervalRef.current = setInterval(() => {
+          fetchChat()
+        }, POLLING_INTERVAL)
+      }
+    }
+
+    // Update previous status
+    if (currentStatus) {
+      previousStatusRef.current = currentStatus
+    }
+
+    // Start polling immediately for new or processing chats
+    // The fetchChat function will automatically stop polling when status becomes completed/failed
+    if (!intervalRef.current) {
       intervalRef.current = setInterval(() => {
         fetchChat()
       }, POLLING_INTERVAL)
@@ -91,8 +126,7 @@ export function useChatDetail(chatId: string | null): UseChatDetailReturn {
         intervalRef.current = null
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId, chat?.status])
+  }, [chatId, fetchChat, chat?.status])
 
   return {
     chat,

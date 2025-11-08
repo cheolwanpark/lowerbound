@@ -126,7 +126,7 @@ class ChatAgent:
             chat_record.max_drawdown,
         )
 
-        chat_history = self._format_history(chat_record.messages)
+        chat_history = self._format_history(chat_record.messages, chat_record.portfolio)
         user_prompt_text = format_followup_prompt(chat_history, user_prompt)
 
         # Run with timeout
@@ -194,25 +194,185 @@ class ChatAgent:
             success=True,
         )
 
-    def _format_history(self, messages: list[ChatMessage]) -> str:
-        """Format chat history for prompt.
+    def _format_history(self, messages: list[ChatMessage], current_portfolio: Optional[dict] = None) -> str:
+        """Format chat history for prompt with complete context.
 
         Args:
             messages: List of chat messages
+            current_portfolio: Current portfolio state (optional)
 
         Returns:
-            Formatted history string
+            Formatted history string with messages, tool calls, reasoning, and portfolio state
         """
         lines = []
         for msg in messages:
             if msg.type == "user":
                 lines.append(f"User: {msg.message}")
-            else:
+            elif msg.type == "system":
+                lines.append(f"System: {msg.message}")
+            else:  # agent message
                 lines.append(f"Assistant: {msg.message}")
+
+                # Include tool calls with key insights
+                if msg.toolcalls:
+                    tool_summaries = []
+                    for toolcall in msg.toolcalls:
+                        if isinstance(toolcall, dict):
+                            formatted_tool = self._format_toolcall(toolcall)
+                            if formatted_tool:
+                                tool_summaries.append(formatted_tool)
+
+                    if tool_summaries:
+                        lines.append("\n  Tools used:")
+                        for summary in tool_summaries:
+                            lines.append(f"  {summary}")
+
+                # Include detailed reasoning (not just summaries)
                 if msg.reasonings:
-                    # reasonings is a list of dicts with 'summary', 'detail', 'timestamp'
-                    reasoning_summaries = [r.get('summary', '') for r in msg.reasonings if isinstance(r, dict)]
-                    if reasoning_summaries:
-                        lines.append(f"  (Reasoning: {'; '.join(reasoning_summaries)})")
+                    reasoning_details = []
+                    for reasoning in msg.reasonings:
+                        if isinstance(reasoning, dict):
+                            formatted_reasoning = self._format_reasoning(reasoning)
+                            if formatted_reasoning:
+                                reasoning_details.append(formatted_reasoning)
+
+                    if reasoning_details:
+                        lines.append("\n  Reasoning:")
+                        for detail in reasoning_details:
+                            lines.append(f"  {detail}")
+
+        # Add current portfolio state at the end if available
+        if current_portfolio:
+            lines.append("\n" + "="*60)
+            lines.append("CURRENT PORTFOLIO STATE:")
+            lines.append("="*60)
+
+            positions = current_portfolio.get("positions", [])
+            if positions:
+                lines.append(f"\nPortfolio has {len(positions)} position(s):")
+                for i, pos in enumerate(positions, 1):
+                    asset = pos.get("asset", "Unknown")
+                    position_type = pos.get("position_type", "unknown")
+                    quantity = pos.get("quantity", 0)
+                    leverage = pos.get("leverage", 1.0)
+                    entry_price = pos.get("entry_price")
+
+                    pos_line = f"  {i}. {asset} - {position_type}, qty: {quantity}"
+                    if leverage and leverage != 1.0:
+                        pos_line += f", leverage: {leverage}x"
+                    if entry_price:
+                        pos_line += f", entry: ${entry_price:,.2f}"
+                    lines.append(pos_line)
+
+                # Add explanation if present
+                explanation = current_portfolio.get("explanation", "")
+                if explanation:
+                    lines.append(f"\nPortfolio explanation: {explanation[:200]}...")
+            else:
+                lines.append("\nNo portfolio has been set yet.")
 
         return "\n\n".join(lines)
+
+    def _format_toolcall(self, toolcall: dict) -> Optional[str]:
+        """Format a tool call with key insights.
+
+        Args:
+            toolcall: Tool call dictionary with tool_name, inputs, outputs, status
+
+        Returns:
+            Formatted tool call summary or None if not formattable
+        """
+        tool_name = toolcall.get("tool_name", "")
+        inputs = toolcall.get("inputs", {})
+        outputs = toolcall.get("outputs", {})
+        status = toolcall.get("status", "unknown")
+
+        if status == "error":
+            error_msg = outputs.get("error", "Unknown error")
+            return f"- [{tool_name}] ERROR: {error_msg}"
+
+        # Format based on tool type
+        if tool_name == "get_aggregated_stats":
+            assets = inputs.get("assets", [])
+            if isinstance(assets, str):
+                assets = [assets]
+
+            # Extract key metrics from outputs
+            stats_data = outputs.get("data", {})
+            asset_stats = []
+            for asset in assets:
+                if asset in stats_data:
+                    asset_data = stats_data[asset]
+                    spot = asset_data.get("spot", {})
+                    if spot:
+                        volatility = spot.get("volatility", 0)
+                        sharpe = spot.get("sharpe_ratio", 0)
+                        max_dd = spot.get("max_drawdown", 0)
+                        asset_stats.append(
+                            f"{asset} (vol: {volatility:.1%}, sharpe: {sharpe:.2f}, max_dd: {max_dd:.1%})"
+                        )
+
+            if asset_stats:
+                return f"- [get_aggregated_stats] Analyzed {', '.join(asset_stats)}"
+            else:
+                return f"- [get_aggregated_stats] Fetched data for {', '.join(assets)}"
+
+        elif tool_name == "calculate_risk_profile":
+            # Extract key risk metrics
+            risk_data = outputs.get("data", {})
+            metrics = risk_data.get("metrics", {})
+
+            if metrics:
+                var_95 = metrics.get("var_95", 0)
+                max_dd = metrics.get("max_drawdown", 0)
+                sharpe = metrics.get("sharpe_ratio", 0)
+                total_value = metrics.get("total_value_usd", 0)
+
+                metric_parts = [
+                    f"value: ${total_value:,.0f}",
+                    f"VaR(95%): {var_95:.1%}",
+                    f"max_dd: {max_dd:.1%}",
+                    f"sharpe: {sharpe:.2f}"
+                ]
+
+                # Add lending metrics if present
+                lending = risk_data.get("lending_metrics")
+                if lending:
+                    ltv = lending.get("ltv_ratio", 0)
+                    health = lending.get("health_factor", 0)
+                    metric_parts.extend([
+                        f"LTV: {ltv:.1%}",
+                        f"health: {health:.2f}"
+                    ])
+
+                return f"- [calculate_risk_profile] {', '.join(metric_parts)}"
+            else:
+                return f"- [calculate_risk_profile] Computed risk metrics"
+
+        else:
+            # Generic format for other tools
+            return f"- [{tool_name}] Executed successfully"
+
+    def _format_reasoning(self, reasoning: dict) -> Optional[str]:
+        """Format a reasoning step with summary and detail.
+
+        Args:
+            reasoning: Reasoning dictionary with summary, detail, timestamp
+
+        Returns:
+            Formatted reasoning or None if not formattable
+        """
+        summary = reasoning.get("summary", "").strip()
+        detail = reasoning.get("detail", "").strip()
+
+        if not summary:
+            return None
+
+        # If detail exists and adds value, include it
+        if detail and detail != summary:
+            # Limit detail to reasonable length (first 300 chars)
+            if len(detail) > 300:
+                detail = detail[:297] + "..."
+            return f"- {summary}\n    → {detail}"
+        else:
+            return f"- {summary}"

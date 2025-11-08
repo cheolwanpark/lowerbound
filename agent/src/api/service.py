@@ -75,6 +75,7 @@ def list_chats_service(
                 strategy=record.strategy,
                 target_apy=record.target_apy,
                 max_drawdown=record.max_drawdown,
+                title=record.title,
                 has_portfolio=record.portfolio is not None,
                 message_count=len(record.messages),
                 created_at=record.created_at,
@@ -162,6 +163,31 @@ def followup_service(
     """
     # Verify chat exists
     get_chat_service(chat_id, chat_store)
+
+    # Update parameters if provided
+    if request.strategy or request.target_apy is not None or request.max_drawdown is not None:
+        record, changes = chat_store.update_parameters(
+            chat_id=chat_id,
+            strategy=request.strategy,
+            target_apy=request.target_apy,
+            max_drawdown=request.max_drawdown,
+        )
+
+        # Add system message documenting parameter changes
+        if changes:
+            change_parts = []
+            if "strategy" in changes:
+                old, new = changes["strategy"]
+                change_parts.append(f"Strategy: {old} → {new}")
+            if "target_apy" in changes:
+                old, new = changes["target_apy"]
+                change_parts.append(f"Target APY: {old}% → {new}%")
+            if "max_drawdown" in changes:
+                old, new = changes["max_drawdown"]
+                change_parts.append(f"Max Drawdown: {old}% → {new}%")
+
+            system_msg = "Portfolio configuration updated: " + ", ".join(change_parts)
+            chat_store.add_system_message(chat_id, system_msg)
 
     # Add user message
     record = chat_store.add_user_message(chat_id, request.prompt)

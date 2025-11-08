@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChatBubble } from "@/components/chat-bubble"
+import { ChatConfigStatus } from "@/components/chat-config-status"
+import { ChatConfigPopup } from "@/components/chat-config-popup"
 import { useChatDetail } from "@/hooks/use-chat-detail"
-import { sendMessage } from "@/lib/api-client"
-import { useToast } from "@/hooks/use-toast"
-import type { BaseMessage, ChatListItem } from "@/lib/types"
+import { sendFollowup } from "@/lib/api-client"
+import { toast } from "sonner"
+import type { BaseMessage, ChatListItem, InvestmentStrategy } from "@/lib/types"
 
 interface ChatProps {
   chatId: string | null
@@ -18,12 +20,16 @@ interface ChatProps {
 }
 
 export function Chat({ chatId, onChatUpdate }: ChatProps) {
-  const { chat, isLoading, error } = useChatDetail(chatId)
+  const { chat, isLoading, error, refetch } = useChatDetail(chatId)
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [configOverride, setConfigOverride] = useState<{
+    strategy: InvestmentStrategy
+    target_apy: number
+    max_drawdown: number
+  } | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
 
   // Create display messages with empty placeholder when processing
   // Must be before any conditional returns to maintain hook order
@@ -57,10 +63,10 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
         status: chat.status,
         message_count: chat.messages.length,
         has_portfolio: chat.portfolio !== null,
-        updated_at: new Date().toISOString(),
+        updated_at: chat.updated_at, // Use server's timestamp, not client time
       })
     }
-  }, [chat?.status, chat?.messages.length, chat?.portfolio, chat?.id, onChatUpdate])
+  }, [chat?.status, chat?.messages.length, chat?.portfolio, chat?.id, chat?.updated_at, onChatUpdate])
 
   // Check if user is near bottom of scroll area
   const isNearBottom = () => {
@@ -103,6 +109,12 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
   }
 
   const handleSend = async () => {
+    // Check if chat is already processing
+    if (chat?.status === "processing" || chat?.status === "queued") {
+      toast("Agent is processing your previous request. Please wait for it to complete before sending a new message.")
+      return
+    }
+
     if (!input.trim() || !chatId || isSending) return
 
     const messageText = input.trim()
@@ -110,20 +122,26 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
     setIsSending(true)
 
     try {
-      await sendMessage(chatId, messageText)
-      // The polling hook will automatically fetch the updated chat
+      await sendFollowup(chatId, messageText, configOverride || undefined)
+      setConfigOverride(null) // Clear config override after sending
+      // Force immediate refetch to show the user message
+      await refetch()
     } catch (err) {
-      toast({
-        title: "Error",
-        description:
-          err instanceof Error ? err.message : "Failed to send message",
-        variant: "destructive",
-      })
+      toast("Failed to send message: " + (err instanceof Error ? err.message : "Unknown error"))
       // Restore the input on error
       setInput(messageText)
     } finally {
       setIsSending(false)
     }
+  }
+
+  const handleConfigChange = (config: {
+    strategy: InvestmentStrategy
+    target_apy: number
+    max_drawdown: number
+  }) => {
+    setConfigOverride(config)
+    toast("Configuration updated. These settings will be applied when you send your next message.")
   }
 
   // Empty state - no chat selected
@@ -171,10 +189,18 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
     )
   }
 
-  const canSendMessages = chat.status !== "completed" && chat.status !== "failed"
+  // Only block sending for failed chats (completed, timeout can receive followups)
+  const canSendMessages = chat.status !== "failed"
 
   return (
     <div className="relative flex h-full flex-col">
+      {/* Configuration Status Bar */}
+      <ChatConfigStatus
+        strategy={chat.strategy}
+        targetApy={chat.target_apy}
+        maxDrawdown={chat.max_drawdown}
+      />
+
       {/* Chat Messages */}
       <div className="relative flex-1 overflow-hidden">
         <ScrollArea ref={scrollAreaRef} className="h-full">
@@ -225,6 +251,12 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
         <div className="border-t border-border bg-card p-4">
           <div className="mx-auto w-full px-6" style={{ maxWidth: '70vw' }}>
             <div className="flex gap-2">
+              <ChatConfigPopup
+                currentStrategy={chat.strategy}
+                currentApy={chat.target_apy}
+                currentDrawdown={chat.max_drawdown}
+                onConfigChange={handleConfigChange}
+              />
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -235,14 +267,14 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
                   }
                 }}
                 placeholder="메시지를 입력하세요..."
-                className="rounded-xl"
-                disabled={isSending}
+                className="rounded-xl text-foreground"
+                disabled={isSending || chat.status === "processing" || chat.status === "queued"}
               />
               <Button
                 onClick={handleSend}
                 size="icon"
                 className="rounded-xl"
-                disabled={isSending || !input.trim()}
+                disabled={isSending || !input.trim() || chat.status === "processing" || chat.status === "queued"}
               >
                 {isSending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -255,11 +287,11 @@ export function Chat({ chatId, onChatUpdate }: ChatProps) {
         </div>
       )}
 
-      {/* Disabled input area for completed/failed chats */}
+      {/* Disabled input area for failed chats */}
       {!canSendMessages && (
         <div className="border-t border-border bg-muted/50 p-4">
           <div className="mx-auto w-full px-6 text-center text-sm text-muted-foreground" style={{ maxWidth: '70vw' }}>
-            This chat is {chat.status}. You cannot send more messages.
+            This chat has failed. You cannot send more messages.
           </div>
         </div>
       )}

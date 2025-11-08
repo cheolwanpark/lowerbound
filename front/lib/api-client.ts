@@ -120,6 +120,7 @@ export async function createChat(
       strategy: params.strategy,
       target_apy: params.target_apy,
       max_drawdown: params.max_drawdown,
+      title: params.title,
     }),
   })
 
@@ -127,23 +128,44 @@ export async function createChat(
 }
 
 /**
- * Send a message to an existing chat session
- * POST /chat/{id}/message
+ * Send a followup message to an existing chat session
+ * POST /chat/{id}/followup
+ */
+export async function sendFollowup(
+  chatId: string,
+  prompt: string,
+  config?: {
+    strategy?: "Passive" | "Conservative" | "Aggressive"
+    target_apy?: number
+    max_drawdown?: number
+  },
+): Promise<ChatDetail> {
+  const apiUrl = getApiUrl()
+  const body: Record<string, unknown> = { prompt }
+
+  // Add optional configuration parameters if provided
+  if (config?.strategy) body.strategy = config.strategy
+  if (config?.target_apy !== undefined) body.target_apy = config.target_apy
+  if (config?.max_drawdown !== undefined) body.max_drawdown = config.max_drawdown
+
+  const response = await fetch(`${apiUrl}/chat/${chatId}/followup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+
+  return handleResponse<ChatDetail>(response)
+}
+
+/**
+ * @deprecated Use sendFollowup instead
+ * Legacy function for backward compatibility
  */
 export async function sendMessage(
   chatId: string,
   message: string,
 ): Promise<ChatDetail> {
-  const apiUrl = getApiUrl()
-  const response = await fetch(`${apiUrl}/chat/${chatId}/message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message,
-    }),
-  })
-
-  return handleResponse<ChatDetail>(response)
+  return sendFollowup(chatId, message)
 }

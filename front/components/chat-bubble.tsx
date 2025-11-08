@@ -155,7 +155,9 @@ export function ChatBubble({ message, chatStatus }: ChatBubbleProps) {
 
   const hasReasoningDetails = timeline.length > 0
   const isProcessing = chatStatus === "processing"
-  const isEmptyMessage = !message.message || message.message.trim() === ""
+  const isEmptyMessage = !message.message ||
+                         message.message.trim() === "" ||
+                         message.message === "[Agent is thinking...]"
 
   const handleToolCallClick = (toolCall: ToolCall) => {
     setSelectedToolCall(toolCall)
@@ -260,8 +262,8 @@ export function ChatBubble({ message, chatStatus }: ChatBubbleProps) {
             </div>
           )}
 
-          {/* Progress Preview - Show last 3 items when processing and reasoning is not expanded */}
-          {isProcessing && hasReasoningDetails && !showReasoning && (
+          {/* Progress Preview - Show last 3 items when message is empty (actively generating) and reasoning is not expanded */}
+          {isEmptyMessage && hasReasoningDetails && !showReasoning && (
             <div className="space-y-2 border-t border-border px-4 py-3">
               <p className="text-xs text-card-foreground/60">Recent activity:</p>
               {timeline.slice(-3).map((item, index) => {
@@ -290,8 +292,8 @@ export function ChatBubble({ message, chatStatus }: ChatBubbleProps) {
             </div>
           )}
 
-          {/* Thinking Indicator (when processing or message is empty) */}
-          {(isProcessing || isEmptyMessage) && <ThinkingIndicator />}
+          {/* Thinking Indicator (when message is empty - actively generating) */}
+          {isEmptyMessage && <ThinkingIndicator />}
         </div>
 
         {/* Timestamp - Outside the box */}

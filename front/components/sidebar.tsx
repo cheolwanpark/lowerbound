@@ -114,6 +114,13 @@ export function Sidebar({
                       : "text-sidebar-foreground hover:bg-sidebar-accent/50",
                   )}
                 >
+                  {/* Title */}
+                  {chat.title && (
+                    <div className="mb-2 truncate text-sm font-medium">
+                      {chat.title}
+                    </div>
+                  )}
+
                   {/* Header row: Strategy + Status */}
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <Badge

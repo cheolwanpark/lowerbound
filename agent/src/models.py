@@ -14,6 +14,7 @@ class ChatSummary(BaseModel):
     strategy: str
     target_apy: float
     max_drawdown: float
+    title: Optional[str] = None
     has_portfolio: bool
     message_count: int
     created_at: datetime
@@ -27,12 +28,16 @@ class ChatCreateRequest(BaseModel):
     strategy: Literal["Passive", "Conservative", "Aggressive"]
     target_apy: float = Field(ge=0, le=200)
     max_drawdown: float = Field(ge=0, le=100)
+    title: Optional[str] = Field(None, max_length=100)
 
 
 class FollowupRequest(BaseModel):
     """Request model for followup messages."""
 
     prompt: str = Field(min_length=1, max_length=5000)
+    strategy: Optional[Literal["Passive", "Conservative", "Aggressive"]] = None
+    target_apy: Optional[float] = Field(None, ge=0, le=200)
+    max_drawdown: Optional[float] = Field(None, ge=0, le=100)
 
 
 class PortfolioPosition(BaseModel):
@@ -68,7 +73,7 @@ class PortfolioVersion(BaseModel):
 class ChatMessage(BaseModel):
     """Individual message in a chat conversation."""
 
-    type: Literal["user", "agent"]
+    type: Literal["user", "agent", "system"]
     message: str
     reasonings: list[dict] = Field(default_factory=list)
     toolcalls: list[dict] = Field(default_factory=list)
@@ -83,6 +88,7 @@ class ChatRecord(BaseModel):
     strategy: str
     target_apy: float
     max_drawdown: float
+    title: Optional[str] = None
     messages: list[ChatMessage] = Field(default_factory=list)
     portfolio: Optional[list[PortfolioPosition]] = None  # Latest/final portfolio (backward compat)
     portfolio_versions: list[PortfolioVersion] = Field(default_factory=list)  # All versions

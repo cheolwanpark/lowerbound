@@ -5,8 +5,8 @@
 // Chat List Types
 // ============================================================================
 
-export type ChatStatus = "processing" | "completed" | "failed"
-export type InvestmentStrategy = "Conservative" | "Balanced" | "Aggressive"
+export type ChatStatus = "queued" | "processing" | "completed" | "failed" | "timeout"
+export type InvestmentStrategy = "Passive" | "Conservative" | "Aggressive"
 
 export interface ChatListItem {
   id: string
@@ -14,6 +14,7 @@ export interface ChatListItem {
   strategy: InvestmentStrategy
   target_apy: number
   max_drawdown: number
+  title?: string
   has_portfolio: boolean
   message_count: number
   created_at: string
@@ -39,7 +40,7 @@ export interface ToolCall {
   status: "success" | "error"
 }
 
-export type MessageType = "user" | "agent"
+export type MessageType = "user" | "agent" | "system"
 
 export interface BaseMessage {
   type: MessageType
@@ -84,6 +85,7 @@ export interface ChatDetail {
   strategy: InvestmentStrategy
   target_apy: number
   max_drawdown: number
+  title?: string
   messages: BaseMessage[]
   portfolio: Position[] | null
   portfolio_versions: PortfolioVersion[]
@@ -112,6 +114,7 @@ export interface CreateChatParams {
   target_apy: number
   max_drawdown: number
   initial_message: string
+  title: string
 }
 
 // ============================================================================
@@ -126,4 +129,22 @@ export interface ChatState {
 export interface LoadingState {
   isLoading: boolean
   error: Error | null
+}
+
+// ============================================================================
+// Validation Helpers
+// ============================================================================
+
+/**
+ * Clamp APY value to valid range (0-200%)
+ */
+export function clampAPY(value: number): number {
+  return Math.max(0, Math.min(200, value))
+}
+
+/**
+ * Clamp max drawdown value to valid range (0-100%)
+ */
+export function clampDrawdown(value: number): number {
+  return Math.max(0, Math.min(100, value))
 }

@@ -11,17 +11,11 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import type { InvestmentStrategy } from "@/lib/types"
+import { PortfolioConfigInputs } from "@/components/portfolio-config-inputs"
 
 interface NewChatModalProps {
   open: boolean
@@ -31,6 +25,7 @@ interface NewChatModalProps {
     target_apy: number
     max_drawdown: number
     initial_message: string
+    title: string
   }) => void
   isCreating?: boolean
 }
@@ -44,12 +39,13 @@ export function NewChatModal({
   const [strategy, setStrategy] = useState<InvestmentStrategy>("Conservative")
   const [targetAPY, setTargetAPY] = useState("20")
   const [maxDrawdown, setMaxDrawdown] = useState("15")
+  const [title, setTitle] = useState("")
   const [initialMessage, setInitialMessage] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!initialMessage.trim()) {
+    if (!initialMessage.trim() || !title.trim()) {
       return
     }
 
@@ -58,12 +54,14 @@ export function NewChatModal({
       target_apy: parseFloat(targetAPY),
       max_drawdown: parseFloat(maxDrawdown),
       initial_message: initialMessage.trim(),
+      title: title.trim(),
     })
 
     // Reset form
     setStrategy("Conservative")
     setTargetAPY("20")
     setMaxDrawdown("15")
+    setTitle("")
     setInitialMessage("")
   }
 
@@ -80,60 +78,35 @@ export function NewChatModal({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Chat Title */}
+            <div className="space-y-2">
+              <Label htmlFor="title">Chat Title</Label>
+              <Input
+                id="title"
+                type="text"
+                placeholder="e.g., Conservative Portfolio Q4 2024"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="rounded-lg"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Give your chat a descriptive title for easy identification.
+              </p>
+            </div>
+
             {/* Portfolio Preset Settings */}
             <div className="space-y-4 rounded-lg border border-border p-4">
               <h4 className="text-sm font-semibold">Portfolio Preset</h4>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="strategy">Investment Strategy</Label>
-                  <Select
-                    value={strategy}
-                    onValueChange={(value) =>
-                      setStrategy(value as InvestmentStrategy)
-                    }
-                  >
-                    <SelectTrigger id="strategy" className="rounded-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Conservative">Conservative</SelectItem>
-                      <SelectItem value="Balanced">Balanced</SelectItem>
-                      <SelectItem value="Aggressive">Aggressive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="apy">Target APY (%)</Label>
-                  <Input
-                    id="apy"
-                    type="number"
-                    min="0"
-                    max="1000"
-                    step="0.1"
-                    value={targetAPY}
-                    onChange={(e) => setTargetAPY(e.target.value)}
-                    className="rounded-lg"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="drawdown">Maximum Drawdown (%)</Label>
-                  <Input
-                    id="drawdown"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={maxDrawdown}
-                    onChange={(e) => setMaxDrawdown(e.target.value)}
-                    className="rounded-lg"
-                    required
-                  />
-                </div>
-              </div>
+              <PortfolioConfigInputs
+                strategy={strategy}
+                targetAPY={targetAPY}
+                maxDrawdown={maxDrawdown}
+                onStrategyChange={(value) => setStrategy(value)}
+                onTargetAPYChange={setTargetAPY}
+                onMaxDrawdownChange={setMaxDrawdown}
+              />
             </div>
 
             {/* Initial Message */}
@@ -162,7 +135,7 @@ export function NewChatModal({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating || !initialMessage.trim()}>
+            <Button type="submit" disabled={isCreating || !initialMessage.trim() || !title.trim()}>
               {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Chat
             </Button>
