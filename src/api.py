@@ -690,6 +690,8 @@ async def get_lending(
 
         # Convert to API response format with RAY→APY conversion
         data_points = []
+        failed_count = 0
+
         for row in rows:
             try:
                 # Convert RAY rates to APY percentages
@@ -713,10 +715,22 @@ async def get_lending(
                     price_usd=row["price_usd"],
                 )
                 data_points.append(data_point)
-            except Exception as e:
-                logger.warning(f"Failed to convert lending data row: {e}")
+            except (ValueError, ArithmeticError, KeyError) as e:
+                failed_count += 1
+                logger.warning(f"Failed to convert lending data row: {e}", exc_info=True)
                 # Skip this row but continue processing others
                 continue
+
+        # Warn if some conversions failed
+        if failed_count > 0:
+            logger.warning(f"Skipped {failed_count}/{len(rows)} rows due to conversion errors")
+
+        # Raise error if ALL rows failed conversion (prevents silent empty responses)
+        if not data_points and rows:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"All {len(rows)} data points failed conversion",
+            )
 
         return LendingResponse(
             asset=aave_asset,
