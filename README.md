@@ -109,6 +109,3 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 	•	Risk Model Docs → ...
 
 
-# Disclaimer: This tool is for educational and simulation purposes only. Not financial advice.
-
-
