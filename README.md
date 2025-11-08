@@ -50,21 +50,23 @@ This cycle keeps individual investors stuck in a loop of losses, misinformation,
 
 👤 Target Users
 
-User Type	Core Needs
-Beginner crypto users	Guided entry, education, risk control
-Traditional investors	Risk-adjusted exposure with explainability
-Experienced traders	Hedge and stress-test frameworks for existing assets
-Advisors / wealth managers	Client-ready, explainable crypto allocation tools
+| User Type                  | Core Needs                                         |
+|----------------------------|----------------------------------------------------|
+| Beginner crypto users      | Guided entry, education, risk control              |
+| Traditional investors      | Risk-adjusted exposure with explainability         |
+| Experienced traders        | Hedge and stress-test frameworks for existing assets |
+| Advisors / wealth managers | Client-ready, explainable crypto allocation tools  |
 
 
 ⸻
 
 📊 Market Opportunity
 
-Scope	Size	Growth
-Global Crypto Market (TAM)	$2.96T (2025)	30.1% CAGR
-Crypto Asset Management (SAM)	$1.7B	34.7% CAGR
-Retail crypto users	300M (2022) → 800M (2025)	—
+| Scope                         | Size                      | Growth       |
+|-------------------------------|---------------------------|--------------|
+| Global Crypto Market (TAM)    | $2.96T (2025)             | 30.1% CAGR   |
+| Crypto Asset Management (SAM) | $1.7B                     | 34.7% CAGR   |
+| Retail crypto users           | 300M (2022) → 800M (2025) | —            |
 
 Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
@@ -72,12 +74,13 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
 🆚 Competitive Positioning
 
-Feature	Our Product	Wealthfront	Shrimpy	Good Crypto
-Spot + Futures + DeFi Assets	✅	❌	✅	❌
-AI-Based Risk Profiling	✅	✅	❌	❌
-Real Stress Testing	✅	❌	❌	❌
-Risk Models (HRP / CVaR)	✅	✅ (MPT)	❌	❌
-Allocation Explainability	✅ ★	❌	❌	❌
+| Feature                        | **Our Product** | Wealthfront | Shrimpy | Good Crypto |
+|--------------------------------|-----------------|-------------|---------|-------------|
+| Spot + Futures + DeFi Assets   | ✅              | ❌          | ✅      | ❌          |
+| AI-Based Risk Profiling        | ✅              | ✅          | ❌      | ❌          |
+| Real Stress Testing            | ✅              | ❌          | ❌      | ❌          |
+| Risk Models (HRP / CVaR)       | ✅              | ✅ (MPT)    | ❌      | ❌          |
+| Allocation Explainability      | ✅ ★            | ❌          | ❌      | ❌          |
 
 
 ⸻
