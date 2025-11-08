@@ -35,11 +35,11 @@ This cycle keeps individual investors stuck in a loop of losses, misinformation,
 
 
 # Core Technology
-	•	AI Agent that interprets user goals, risk tolerance, and investment intentions
-	•	Risk Engine powered by Hierarchical Risk Parity (HRP), CVaR, and EWMA covariance models
-	•	AI ↔ Risk Engine feedback loop for personalized and validated portfolio construction
-	•	Uses real on-chain, derivatives, and historical market data to quantify risk exposure
-	•	Explainable output — not a black box
+- AI Agent that interprets user goals, risk tolerance, and investment intentions
+- Risk Engine powered by Hierarchical Risk Parity (HRP), CVaR, and EWMA covariance models
+- AI ↔ Risk Engine feedback loop for personalized and validated portfolio construction
+- Uses real on-chain, derivatives, and historical market data to quantify risk exposure
+- Explainable output — not a black box
 
 
 
@@ -81,17 +81,17 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
 
 # Why We Win
-	•	Risk-first, not alpha-first — no prediction, no hype
-	•	Covers full crypto stack (spot, futures, lending, staking)
-	•	Converts risk metrics into plain-language guidance
-	•	Makes users stay in the game with discipline — not gamble into losses
+- Risk-first, not alpha-first — no prediction, no hype
+- Covers full crypto stack (spot, futures, lending, staking)
+- Converts risk metrics into plain-language guidance
+- Makes users stay in the game with discipline — not gamble into losses
 
 
 
 # Business Model
-	•	AI usage credits (core revenue)
-	•	Optional affiliate fees from spot assets/DeFi integrations
-	•	Premium subscription for alerts, automated hedging, and backtesting features
+- AI usage credits (core revenue)
+- Optional affiliate fees from spot assets/DeFi integrations
+- Premium subscription for alerts, automated hedging, and backtesting features
 
 
 
@@ -104,8 +104,8 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
 
 # 🔗 Links
-	•	Pitch Deck → ...
-	•	Product Demo → ...
-	•	Risk Model Docs → ...
+- Pitch Deck → ...
+- Product Demo → ...
+- Risk Model Docs → ...
 
 
