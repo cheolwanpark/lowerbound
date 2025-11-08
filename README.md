@@ -4,7 +4,7 @@ AI-powered risk management for smarter, safer crypto investing.
 No price predictions — just knowledge, risk control, and confidence.
 
 
-# 🚨 Problem
+# Problem
 
 1. Low Understanding of Crypto Finance
 
@@ -55,7 +55,7 @@ This cycle keeps individual investors stuck in a loop of losses, misinformation,
 
 
 
-# 📊 Market Opportunity
+# Market Opportunity
 
 | Scope                         | Size                      | Growth       |
 |-------------------------------|---------------------------|--------------|
@@ -109,6 +109,6 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 	•	Risk Model Docs → ...
 
 
-# 🔒 Disclaimer: This tool is for educational and simulation purposes only. Not financial advice.
+# Disclaimer: This tool is for educational and simulation purposes only. Not financial advice.
 
 
