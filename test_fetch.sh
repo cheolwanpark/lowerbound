@@ -184,7 +184,6 @@ else
 fi
 
 # Test error handling (404 for invalid asset)
-ERROR_RESPONSE=$(curl -s "$API_URL/api/v1/ohlcv/INVALID_ASSET?limit=1")
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/v1/ohlcv/INVALID_ASSET?limit=1")
 if [ "$HTTP_CODE" = "404" ]; then
     print_pass "Error handling: 404 for invalid asset"
@@ -198,7 +197,13 @@ print_header "Database Schema Checks"
 
 # Helper function for psql queries
 run_query() {
-    docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -A -c "$1" 2>/dev/null || echo ""
+    local result
+    result=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -A -c "$1" 2>&1)
+    if [ $? -ne 0 ]; then
+        echo "[QUERY ERROR]" >&2
+        return 1
+    fi
+    echo "$result"
 }
 
 # Check all tables exist
@@ -218,76 +223,97 @@ print_header "Data Range & Coverage Summary"
 echo ""
 echo "Spot OHLCV Data:"
 echo "----------------"
-SPOT_ASSETS=$(run_query "SELECT DISTINCT asset FROM spot_ohlcv ORDER BY asset;")
-for asset in $SPOT_ASSETS; do
-    COUNT=$(run_query "SELECT COUNT(*) FROM spot_ohlcv WHERE asset='$asset';")
-    EARLIEST=$(run_query "SELECT MIN(timestamp) FROM spot_ohlcv WHERE asset='$asset';")
-    LATEST=$(run_query "SELECT MAX(timestamp) FROM spot_ohlcv WHERE asset='$asset';")
-    echo "  $asset: $COUNT records | $EARLIEST → $LATEST"
+run_query "
+SELECT
+    asset,
+    COUNT(*) as count,
+    MIN(timestamp) as earliest,
+    MAX(timestamp) as latest
+FROM spot_ohlcv
+GROUP BY asset
+ORDER BY asset
+" | while IFS='|' read -r asset count earliest latest; do
+    echo "  $asset: $count records | $earliest → $latest"
 done
 
 echo ""
-echo "Futures Funding Rates:"
-echo "----------------------"
-FUNDING_ASSETS=$(run_query "SELECT DISTINCT asset FROM futures_funding_rates ORDER BY asset;" | head -3)
-for asset in $FUNDING_ASSETS; do
-    COUNT=$(run_query "SELECT COUNT(*) FROM futures_funding_rates WHERE asset='$asset';")
-    EARLIEST=$(run_query "SELECT MIN(timestamp) FROM futures_funding_rates WHERE asset='$asset';")
-    LATEST=$(run_query "SELECT MAX(timestamp) FROM futures_funding_rates WHERE asset='$asset';")
-    echo "  $asset: $COUNT records | $EARLIEST → $LATEST"
+echo "Futures Funding Rates (first 3 assets):"
+echo "----------------------------------------"
+run_query "
+SELECT
+    asset,
+    COUNT(*) as count,
+    MIN(timestamp) as earliest,
+    MAX(timestamp) as latest
+FROM futures_funding_rates
+GROUP BY asset
+ORDER BY asset
+LIMIT 3
+" | while IFS='|' read -r asset count earliest latest; do
+    echo "  $asset: $count records | $earliest → $latest"
 done
 
 echo ""
-echo "Futures Mark Price Klines:"
-echo "--------------------------"
-MARK_ASSETS=$(run_query "SELECT DISTINCT asset FROM futures_mark_price_klines ORDER BY asset;" | head -3)
-for asset in $MARK_ASSETS; do
-    COUNT=$(run_query "SELECT COUNT(*) FROM futures_mark_price_klines WHERE asset='$asset';")
-    EARLIEST=$(run_query "SELECT MIN(timestamp) FROM futures_mark_price_klines WHERE asset='$asset';")
-    LATEST=$(run_query "SELECT MAX(timestamp) FROM futures_mark_price_klines WHERE asset='$asset';")
-    echo "  $asset: $COUNT records | $EARLIEST → $LATEST"
+echo "Futures Mark Price Klines (first 3 assets):"
+echo "--------------------------------------------"
+run_query "
+SELECT
+    asset,
+    COUNT(*) as count,
+    MIN(timestamp) as earliest,
+    MAX(timestamp) as latest
+FROM futures_mark_price_klines
+GROUP BY asset
+ORDER BY asset
+LIMIT 3
+" | while IFS='|' read -r asset count earliest latest; do
+    echo "  $asset: $count records | $earliest → $latest"
 done
 
 echo ""
 echo "Lending Data:"
 echo "-------------"
-LENDING_ASSETS=$(run_query "SELECT DISTINCT asset FROM lendings ORDER BY asset;")
-for asset in $LENDING_ASSETS; do
-    COUNT=$(run_query "SELECT COUNT(*) FROM lendings WHERE asset='$asset';")
-    EARLIEST=$(run_query "SELECT MIN(timestamp) FROM lendings WHERE asset='$asset';")
-    LATEST=$(run_query "SELECT MAX(timestamp) FROM lendings WHERE asset='$asset';")
-    echo "  $asset: $COUNT records | $EARLIEST → $LATEST"
+run_query "
+SELECT
+    asset,
+    COUNT(*) as count,
+    MIN(timestamp) as earliest,
+    MAX(timestamp) as latest
+FROM lendings
+GROUP BY asset
+ORDER BY asset
+" | while IFS='|' read -r asset count earliest latest; do
+    echo "  $asset: $count records | $earliest → $latest"
 done
 
 # ==================== Data Recency Check ====================
 
 print_header "Data Recency Checks"
 
-# Check spot data recency
-SPOT_LATEST=$(run_query "SELECT MAX(timestamp) FROM spot_ohlcv;")
-if [ -n "$SPOT_LATEST" ]; then
-    # Simple check: if data is from today or yesterday, it's recent
-    if echo "$SPOT_LATEST" | grep -qE "$(date -u +%Y-%m-%d)|$(date -u -v-1d +%Y-%m-%d)" 2>/dev/null || \
-       echo "$SPOT_LATEST" | grep -qE "$(date -u +%Y-%m-%d)|$(date -u --date='1 day ago' +%Y-%m-%d)" 2>/dev/null; then
-        print_pass "Spot OHLCV data is recent (within 48 hours)"
-    else
-        print_warn "Spot OHLCV latest: $SPOT_LATEST (may be stale)"
-    fi
+# Check spot data recency (using SQL for portability)
+SPOT_RECENT_COUNT=$(run_query "SELECT COUNT(*) FROM spot_ohlcv WHERE timestamp >= NOW() - INTERVAL '48 hours';")
+if [ -n "$SPOT_RECENT_COUNT" ] && [ "$SPOT_RECENT_COUNT" -gt 0 ]; then
+    print_pass "Spot OHLCV data is recent (within 48 hours)"
 else
-    print_fail "No spot OHLCV data found"
+    SPOT_LATEST=$(run_query "SELECT MAX(timestamp) FROM spot_ohlcv;")
+    if [ -n "$SPOT_LATEST" ]; then
+        print_warn "Spot OHLCV latest: $SPOT_LATEST (may be stale)"
+    else
+        print_fail "No spot OHLCV data found"
+    fi
 fi
 
 # Check lending data recency
-LENDING_LATEST=$(run_query "SELECT MAX(timestamp) FROM lendings;")
-if [ -n "$LENDING_LATEST" ]; then
-    if echo "$LENDING_LATEST" | grep -qE "$(date -u +%Y-%m-%d)|$(date -u -v-1d +%Y-%m-%d)" 2>/dev/null || \
-       echo "$LENDING_LATEST" | grep -qE "$(date -u +%Y-%m-%d)|$(date -u --date='1 day ago' +%Y-%m-%d)" 2>/dev/null; then
-        print_pass "Lending data is recent (within 48 hours)"
-    else
-        print_warn "Lending data latest: $LENDING_LATEST (may be stale)"
-    fi
+LENDING_RECENT_COUNT=$(run_query "SELECT COUNT(*) FROM lendings WHERE timestamp >= NOW() - INTERVAL '48 hours';")
+if [ -n "$LENDING_RECENT_COUNT" ] && [ "$LENDING_RECENT_COUNT" -gt 0 ]; then
+    print_pass "Lending data is recent (within 48 hours)"
 else
-    print_fail "No lending data found"
+    LENDING_LATEST=$(run_query "SELECT MAX(timestamp) FROM lendings;")
+    if [ -n "$LENDING_LATEST" ]; then
+        print_warn "Lending data latest: $LENDING_LATEST (may be stale)"
+    else
+        print_fail "No lending data found"
+    fi
 fi
 
 # Check backfill state
