@@ -20,7 +20,7 @@ In high-volatility environments, this leads to forced liquidations, emotional de
 Insufficient knowledge leads to losses → losses create misinformation and negative sentiment → that drives people away from learning or re-entering the market.
 This cycle keeps individual investors stuck in a loop of losses, misinformation, and fear — pushing them out of the market before they ever learn how to manage risk properly.
 
-# Solution — The Painkiller
+# Solution - Crypto Risk Advisor
 
 “Invest with knowledge. Manage risk. Reflect your preferences.”
 
