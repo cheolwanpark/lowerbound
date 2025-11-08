@@ -59,7 +59,7 @@ def process_chat_request(
         chat_store.mark_processing(chat_id)
 
         # Create agent
-        agent = ChatAgent(settings, backend_client)
+        agent = ChatAgent(settings, backend_client, chat_store)
 
         # Run agent based on request type
         if is_followup:
@@ -87,7 +87,9 @@ def process_chat_request(
                 agent.run_initial(chat_id, request, user_prompt)
             )
 
-        # ATOMIC commit: write all agent outputs in single transaction
+        # FINAL commit: merge in-memory results with real-time Redis writes
+        # Note: Tools (reasoning_step, set_portfolio) already wrote to Redis during execution.
+        # This commit ensures final status is set and any remaining data is persisted.
         if result.success:
             chat_store.commit_agent_result(
                 chat_id=chat_id,

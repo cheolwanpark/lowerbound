@@ -27,7 +27,7 @@ class Settings:
             redis_url=os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
             queue_name=os.getenv("QUEUE_NAME", "chat-agent"),
             max_workers=int(os.getenv("MAX_WORKERS", "10")),
-            agent_timeout_seconds=int(os.getenv("AGENT_TIMEOUT_SECONDS", "60")),
+            agent_timeout_seconds=int(os.getenv("AGENT_TIMEOUT_SECONDS", "600")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
         )
 

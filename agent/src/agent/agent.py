@@ -9,25 +9,33 @@ from src.agent.prompt import (
     format_initial_prompt,
     format_system_prompt,
 )
-from src.agent.tools.base import PortfolioTools
+from src.agent.tools import PortfolioTools
 from src.backend_client import BackendClient
 from src.config import Settings
 from src.models import ChatCreateRequest, ChatMessage, ChatRecord
+from src.storage.chat_store import ChatStore
 from src.wrapper import Agent
 
 
 class ChatAgent:
     """AI agent for portfolio risk advisory using Claude Agent SDK."""
 
-    def __init__(self, settings: Settings, backend_client: BackendClient):
+    def __init__(
+        self,
+        settings: Settings,
+        backend_client: BackendClient,
+        chat_store: ChatStore,
+    ):
         """Initialize chat agent.
 
         Args:
             settings: Application settings
             backend_client: Backend API client
+            chat_store: ChatStore for direct Redis writes
         """
         self.settings = settings
         self.backend_client = backend_client
+        self.chat_store = chat_store
 
     async def run_initial(
         self,
@@ -49,6 +57,7 @@ class ChatAgent:
         context = ToolContext(
             chat_id=chat_id,
             backend_client=self.backend_client,
+            chat_store=self.chat_store,
             current_portfolio=None,
         )
 
@@ -106,6 +115,7 @@ class ChatAgent:
         context = ToolContext(
             chat_id=chat_id,
             backend_client=self.backend_client,
+            chat_store=self.chat_store,
             current_portfolio=chat_record.portfolio,
         )
 

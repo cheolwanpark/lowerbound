@@ -41,9 +41,7 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"Settings loaded: backend_url={settings.backend_api_url}")
     logger.info(f"Queue: {settings.queue_name}, Max workers: {settings.max_workers}")
-    logger.info(f"Agent limits: max_turns={settings.agent_max_turns}, "
-                f"timeout={settings.agent_timeout_seconds}s, "
-                f"max_tool_calls={settings.agent_max_tool_calls}")
+    logger.info(f"Agent timeout: {settings.agent_timeout_seconds}s")
 
     yield
 

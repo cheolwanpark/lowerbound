@@ -5,7 +5,13 @@ from typing import Literal, Optional
 
 import redis
 
-from src.models import ChatCreateRequest, ChatMessage, ChatRecord, PortfolioPosition
+from src.models import (
+    ChatCreateRequest,
+    ChatMessage,
+    ChatRecord,
+    PortfolioPosition,
+    PortfolioVersion,
+)
 
 
 class ChatStore:
@@ -106,6 +112,80 @@ class ChatStore:
         """
         record = self._get_record(chat_id)
         record.status = "processing"
+        record.updated_at = datetime.utcnow()
+        self._write_record(record)
+        return record
+
+    def append_reasoning(self, chat_id: str, reasoning: str) -> ChatRecord:
+        """Append reasoning to the latest agent message (real-time streaming).
+
+        Creates a placeholder agent message if none exists yet.
+
+        Args:
+            chat_id: Chat identifier
+            reasoning: Reasoning text to append
+
+        Returns:
+            Updated chat record
+        """
+        record = self._get_record(chat_id)
+
+        # Find latest agent message or create placeholder
+        if record.messages and record.messages[-1].type == "agent":
+            # Append to existing agent message
+            record.messages[-1].reasonings.append(reasoning)
+        else:
+            # Create new placeholder agent message
+            record.messages.append(
+                ChatMessage(
+                    type="agent",
+                    message="[Agent is thinking...]",
+                    reasonings=[reasoning],
+                    timestamp=datetime.utcnow(),
+                )
+            )
+
+        record.updated_at = datetime.utcnow()
+        self._write_record(record)
+        return record
+
+    def add_portfolio_version(
+        self,
+        chat_id: str,
+        portfolio: list[PortfolioPosition],
+        explanation: str,
+    ) -> ChatRecord:
+        """Add a new portfolio version (real-time streaming).
+
+        Creates a new version each time set_portfolio is called during agent execution.
+
+        Args:
+            chat_id: Chat identifier
+            portfolio: Portfolio positions
+            explanation: Explanation for this portfolio version
+
+        Returns:
+            Updated chat record
+        """
+        record = self._get_record(chat_id)
+
+        # Calculate next version number
+        next_version = len(record.portfolio_versions) + 1
+
+        # Create new portfolio version
+        new_version = PortfolioVersion(
+            version=next_version,
+            positions=portfolio,
+            explanation=explanation,
+            timestamp=datetime.utcnow(),
+        )
+
+        # Add to versions list
+        record.portfolio_versions.append(new_version)
+
+        # Also update the latest portfolio (backward compatibility)
+        record.portfolio = portfolio
+
         record.updated_at = datetime.utcnow()
         self._write_record(record)
         return record

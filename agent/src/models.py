@@ -42,6 +42,15 @@ class PortfolioPosition(BaseModel):
     borrow_type: Optional[Literal["variable", "stable"]] = None
 
 
+class PortfolioVersion(BaseModel):
+    """A versioned portfolio snapshot."""
+
+    version: int
+    positions: list[PortfolioPosition]
+    explanation: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
 class ChatMessage(BaseModel):
     """Individual message in a chat conversation."""
 
@@ -60,7 +69,8 @@ class ChatRecord(BaseModel):
     target_apy: float
     max_drawdown: float
     messages: list[ChatMessage] = Field(default_factory=list)
-    portfolio: Optional[list[PortfolioPosition]] = None
+    portfolio: Optional[list[PortfolioPosition]] = None  # Latest/final portfolio (backward compat)
+    portfolio_versions: list[PortfolioVersion] = Field(default_factory=list)  # All versions
     error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime

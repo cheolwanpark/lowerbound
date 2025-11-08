@@ -25,6 +25,8 @@ from src.models import (
 )
 from src.backend_client import BackendClient
 from src.config import Settings
+from src.storage.chat_store import ChatStore
+from src.storage.redis_client import create_redis_client
 from src.wrapper import Agent
 
 
@@ -66,6 +68,10 @@ async def test_initial_portfolio_conservative():
         log_level="INFO",
     )
 
+    # Create Redis client and ChatStore
+    redis_client = create_redis_client(settings)
+    chat_store = ChatStore(redis_client)
+
     # Use real backend client with shared HTTP client
     async with httpx.AsyncClient() as http_client:
         backend_client = BackendClient(
@@ -73,7 +79,7 @@ async def test_initial_portfolio_conservative():
             http_client,
             settings.backend_api_key
         )
-        agent = ChatAgent(settings, backend_client)
+        agent = ChatAgent(settings, backend_client, chat_store)
 
         # Test request
         request = ChatCreateRequest(
@@ -135,6 +141,10 @@ async def test_initial_portfolio_aggressive():
         log_level="INFO",
     )
 
+    # Create Redis client and ChatStore
+    redis_client = create_redis_client(settings)
+    chat_store = ChatStore(redis_client)
+
     # Use real backend client with shared HTTP client
     async with httpx.AsyncClient() as http_client:
         backend_client = BackendClient(
@@ -142,7 +152,7 @@ async def test_initial_portfolio_aggressive():
             http_client,
             settings.backend_api_key
         )
-        agent = ChatAgent(settings, backend_client)
+        agent = ChatAgent(settings, backend_client, chat_store)
 
         # Test request
         request = ChatCreateRequest(
@@ -204,6 +214,10 @@ async def test_followup_adjustment():
         log_level="INFO",
     )
 
+    # Create Redis client and ChatStore
+    redis_client = create_redis_client(settings)
+    chat_store = ChatStore(redis_client)
+
     # Use real backend client with shared HTTP client
     async with httpx.AsyncClient() as http_client:
         backend_client = BackendClient(
@@ -211,7 +225,7 @@ async def test_followup_adjustment():
             http_client,
             settings.backend_api_key
         )
-        agent = ChatAgent(settings, backend_client)
+        agent = ChatAgent(settings, backend_client, chat_store)
 
         # Create a mock chat record with history
         existing_portfolio = [

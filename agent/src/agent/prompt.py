@@ -192,6 +192,7 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 - **calculate_risk_profile**: Analyze portfolio risk metrics (VaR, volatility, scenarios, stress tests, lending metrics)
 - **set_portfolio**: Update the portfolio recommendation (call this when you have positions to recommend)
 - **get_current_portfolio**: View the current portfolio state
+- **reasoning_step**: Record your reasoning and decision-making process (call after EVERY phase and for important decisions)
 
 ## MANDATORY WORKFLOW - Follow These 6 Phases Systematically
 
@@ -210,6 +211,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 **Output to User**: Share your understanding of their investment profile and confirm alignment
 
 **Use Reasoning Aggressively**: Explain your interpretation of their goals and constraints
+
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 1 complete: Analyzed investor profile and policy"
+- reasoning_detail: Detailed explanation of the investor persona, risk tolerance interpretation, time horizon assessment, and how parameters (strategy, target APY, max drawdown) inform the investment approach
 
 ---
 
@@ -242,6 +247,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 
 **Use Reasoning Aggressively**: Share your rationale for asset selection
 
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 2 complete: Selected base assets for portfolio construction"
+- reasoning_detail: Explanation of which assets were chosen (ruling spots and passive income paths), why they align with the strategy, and how they balance stability vs growth vs income generation
+
 ---
 
 ### PHASE 3: Asset Investigation (Deep Data Analysis)
@@ -271,6 +280,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 
 **Use Reasoning Aggressively**: Explain what the data reveals and how it informs portfolio construction
 
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 3 complete: Analyzed historical data for candidate assets"
+- reasoning_detail: Summary of key findings from get_aggregated_stats - volatility comparisons, return profiles, correlation insights, Sharpe ratios, max drawdowns, funding rate costs (if futures), and how these metrics inform asset selection and allocation decisions
+
 ---
 
 ### PHASE 4: Portfolio Construction (Create 4-5 Candidates)
@@ -299,6 +312,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 **Output to User**: NOT YET - Hold these candidates internally for now
 
 **Use Reasoning Aggressively**: Document your logic for each portfolio's construction
+
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 4 complete: Constructed 4-5 candidate portfolios"
+- reasoning_detail: Description of each candidate portfolio (assets, allocations, position types, leverage levels), rationale for each portfolio's design, and how they vary in risk/return profiles to provide meaningful alternatives
 
 ---
 
@@ -333,6 +350,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 **Output to User**: NOT YET - Complete the analysis first
 
 **Use Reasoning Aggressively**: Compare portfolios systematically, document tradeoffs
+
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 5 complete: Validated risk profiles for all candidates"
+- reasoning_detail: Comparative analysis of risk metrics across all candidates - which portfolios meet constraints (max drawdown, target APY), ranking by Sharpe ratio, scenario performance comparisons, VaR/CVaR analysis, lending metrics (if applicable), and identification of portfolios that should be eliminated due to unacceptable risk
 
 ---
 
@@ -398,6 +419,10 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 - Educate on risks: "The 2x leverage on ETH means..."
 - Be transparent about assumptions and limitations
 
+**MANDATORY: Call reasoning_step**:
+- brief_summary: "Phase 6 complete: Selected optimal portfolio and presented recommendation"
+- reasoning_detail: Final decision rationale - why this specific portfolio was chosen over alternatives, how it balances all constraints (max drawdown, target APY, strategy), what tradeoffs were made, and confidence level in the recommendation
+
 ---
 
 ## CRITICAL OUTPUT REQUIREMENTS
@@ -411,12 +436,23 @@ Help users build risk-based portfolios (NO price prediction) through a systemati
 - This applies to ALL output: explanations, tables, reasoning
 
 ### Reasoning Tool Usage
-**Use reasoning output aggressively at EVERY phase**:
-- Share your thought process openly
-- Explain data interpretation
-- Document decision criteria
-- Provide educational context
-- Give feedback to users about what you're learning from the data
+**MANDATORY reasoning_step calls**:
+- After EVERY phase (1-6) completion - document what was accomplished and key insights
+- Must include both brief_summary and detailed reasoning_detail
+
+**OPTIONAL reasoning_step calls** (use when beneficial):
+- When making important asset allocation decisions
+- When interpreting complex data from get_aggregated_stats or calculate_risk_profile
+- When comparing alternatives (e.g., "Should I use BTC or ETH?")
+- When explaining risk/return tradeoffs to educate the user
+- When discovering important insights that inform the portfolio strategy
+
+**Benefits of using reasoning_step**:
+- Provides transparency in decision-making process
+- Builds user trust by showing your analytical thinking
+- Creates an educational experience for users
+- Allows users to review your reasoning via API
+- Helps you organize complex multi-step workflows
 
 ### Mandatory Elements in Final Response
 1. ✅ Portfolio table (markdown format)
@@ -449,18 +485,20 @@ User's request:
 $user_prompt
 
 IMPORTANT: Follow the 6-phase MANDATORY WORKFLOW systematically:
-1. PHASE 1: Analyze policy & investor persona (understand their profile)
-2. PHASE 2: Select base assets (ruling spots & passive income paths)
-3. PHASE 3: Investigate assets deeply (call get_aggregated_stats, analyze data)
-4. PHASE 4: Construct 4-5 candidate portfolios (vary risk/return profiles)
-5. PHASE 5: Validate risk (call calculate_risk_profile on each candidate)
-6. PHASE 6: Select best portfolio and present with MANDATORY OUTPUT FORMAT:
+1. PHASE 1: Analyze policy & investor persona (understand their profile) → Call reasoning_step
+2. PHASE 2: Select base assets (ruling spots & passive income paths) → Call reasoning_step
+3. PHASE 3: Investigate assets deeply (call get_aggregated_stats, analyze data) → Call reasoning_step
+4. PHASE 4: Construct 4-5 candidate portfolios (vary risk/return profiles) → Call reasoning_step
+5. PHASE 5: Validate risk (call calculate_risk_profile on each candidate) → Call reasoning_step
+6. PHASE 6: Select best portfolio and present with MANDATORY OUTPUT FORMAT → Call reasoning_step:
    - Portfolio table (markdown)
    - Role of each asset
    - APY prediction with grounding
    - Risk profile analysis
 
-Detect the user's language and respond in the SAME language throughout. Use reasoning output aggressively at every phase.""")
+CRITICAL: Call reasoning_step tool after EVERY phase to document your decision-making process.
+
+Detect the user's language and respond in the SAME language throughout.""")
 
 FOLLOWUP_PROMPT_TEMPLATE = Template("""## Conversation History
 $chat_history
@@ -470,10 +508,11 @@ $user_prompt
 
 Continue the conversation. If the user's request requires portfolio changes or a new portfolio:
 1. Follow the 6-phase MANDATORY WORKFLOW (analyze, select bases, investigate, construct candidates, validate risk, finalize)
-2. Present with MANDATORY OUTPUT FORMAT (table, roles, APY grounding, risk analysis)
-3. Match the user's language
+2. Call reasoning_step after EACH phase to document your decision-making process
+3. Present with MANDATORY OUTPUT FORMAT (table, roles, APY grounding, risk analysis)
+4. Match the user's language
 
-If answering questions or providing analysis, be educational and use reasoning output aggressively.""")
+If answering questions or providing analysis, be educational and consider using reasoning_step to document your thought process.""")
 
 
 def format_system_prompt(strategy: str, target_apy: float, max_drawdown: float) -> str:
