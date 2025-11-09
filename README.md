@@ -1,403 +1,111 @@
-# Crypto Portfolio - OHLCV Data Service
-
-A production-ready microservice for fetching, storing, and serving cryptocurrency OHLCV (Open, High, Low, Close, Volume) data from Binance SPOT markets.
-
-## Features
-
-- **Automated Data Fetching**: Scheduled fetches every 12 hours with intelligent catch-up logic
-- **Idempotent Backfill**: Safe initial data population (2 years or 90 days minimum)
-- **Gap Detection & Filling**: Automatically identifies and fills missing data points
-- **Rate Limiting**: Respects Binance API limits with token bucket rate limiting
-- **Query-Time Forward Fill**: Optional forward-filling without corrupting source data
-- **REST API**: FastAPI-based endpoints for querying historical data
-- **PostgreSQL Storage**: High-precision NUMERIC types for financial data
-- **Docker Compose**: Easy deployment with isolated scheduler and API services
-
-## Architecture
+# Crypto Risk Advisor
 
-```
-┌─────────────────┐
-│   Binance API   │
-└────────┬────────┘
-         │
-         │ HTTPS (rate-limited)
-         │
-    ┌────┴─────────────────────────────┐
-    │                                  │
-┌───▼──────────┐            ┌──────────▼──┐
-│  Scheduler   │            │  API Server │
-│  (separate   │            │  (FastAPI)  │
-│  container)  │            └──────┬──────┘
-└───┬──────────┘                   │
-    │                              │
-    │        ┌─────────────────────┘
-    │        │
-    │   ┌────▼────────┐
-    └───► PostgreSQL  │
-        │  Database   │
-        └─────────────┘
-```
+AI-powered risk management for smarter, safer crypto investing.
+No price predictions — just knowledge, risk control, and confidence.
 
-### Components
 
-1. **API Service** (`src/server.py`): FastAPI server for querying OHLCV data
-2. **Scheduler Service** (`src/scheduler.py`): Separate container running AsyncIOScheduler
-3. **Database** (`src/database.py`): PostgreSQL with asyncpg for async operations
-4. **Binance Client** (`src/fetch/binance_client.py`): Rate-limited HTTP client
-5. **SPOT Fetcher** (`src/fetch/spot.py`): OHLCV fetching with gap detection
-6. **Backfill Manager** (`src/fetch/backfill.py`): Idempotent historical data population
-
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- (Optional) Python 3.11+ with `uv` for local development
-
-### 1. Clone and Configure
-
-```bash
-git clone <repository-url>
-cd crypto-portfolio
-
-# Copy environment template
-cp .env.example .env
-
-# Edit configuration (optional)
-nano .env
-```
-
-### 2. Start Services
-
-```bash
-# Start all services (PostgreSQL, API, Scheduler)
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check service status
-docker-compose ps
-```
-
-### 3. Access API
-
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/api/v1/health
-- **Root Info**: http://localhost:8000/
-
-## Configuration
-
-Edit `.env` to customize settings:
-
-```bash
-# Database
-DATABASE_URL=postgresql://crypto:password@postgres:5432/portfolio
-
-# Binance API
-BINANCE_API_BASE_URL=https://api.binance.com
-BINANCE_RATE_LIMIT_REQUESTS_PER_MINUTE=5000
-BINANCE_REQUEST_DELAY_MS=100
-
-# Scheduler
-FETCH_INTERVAL_HOURS=12          # Fetch interval (default: 12h)
-INITIAL_BACKFILL_DAYS=730        # Target backfill period (2 years)
-MIN_BACKFILL_DAYS=90             # Minimum backfill if 2 years unavailable
-
-# Security
-API_KEY=your-secret-key-here     # For protected endpoints
-
-# Logging
-LOG_LEVEL=INFO
-
-# Assets (comma-separated)
-TRACKED_ASSETS=BTC,ETH,SOL,BNB,XRP,ADA,LINK
-```
-
-## API Endpoints
-
-### Public Endpoints
-
-#### `GET /api/v1/health`
-
-Health check with database status.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "timestamp": "2024-11-08T12:00:00Z"
-}
-```
-
-#### `GET /api/v1/assets`
-
-Get data coverage for all tracked assets.
-
-**Response:**
-```json
-{
-  "assets": [
-    {
-      "asset": "BTC",
-      "earliest_timestamp": "2022-11-08T00:00:00Z",
-      "latest_timestamp": "2024-11-08T12:00:00Z",
-      "total_candles": 1460,
-      "backfill_completed": true
-    }
-  ]
-}
-```
-
-#### `GET /api/v1/ohlcv/{asset}`
-
-Query OHLCV data for an asset.
-
-**Parameters:**
-- `asset` (path): Asset symbol (e.g., `BTC`)
-- `start` (query): Start timestamp (ISO 8601)
-- `end` (query): End timestamp (ISO 8601)
-- `limit` (query): Max candles (1-10000)
-- `fill` (query): Forward-fill missing candles (default: `false`)
-
-**Example:**
-```bash
-curl "http://localhost:8000/api/v1/ohlcv/BTC?start=2024-11-01T00:00:00Z&end=2024-11-08T00:00:00Z&fill=false"
-```
-
-**Response:**
-```json
-{
-  "asset": "BTC",
-  "interval": "12h",
-  "data": [
-    {
-      "timestamp": "2024-11-01T00:00:00Z",
-      "open": "68500.50",
-      "high": "69200.00",
-      "low": "68100.25",
-      "close": "68900.75",
-      "volume": "1234.5678",
-      "filled": false
-    }
-  ],
-  "count": 14
-}
-```
-
-### Protected Endpoints
-
-Require `X-API-KEY` header.
-
-#### `POST /api/v1/fetch/trigger`
-
-Manually trigger a fetch job.
-
-**Headers:**
-```
-X-API-KEY: your-secret-key-here
-```
-
-**Request Body:**
-```json
-{
-  "assets": ["BTC", "ETH"],
-  "start_date": "2024-11-01T00:00:00Z",
-  "end_date": "2024-11-08T00:00:00Z"
-}
-```
-
-**Response:**
-```json
-{
-  "job_id": "550e8400-e29b-41d4-a716-446655440000",
-  "message": "Fetch job queued for 2 asset(s)",
-  "assets": ["BTC", "ETH"]
-}
-```
-
-## Database Schema
-
-### `spot_ohlcv` Table
-
-Stores OHLCV candlestick data.
-
-```sql
-CREATE TABLE spot_ohlcv (
-    id SERIAL PRIMARY KEY,
-    asset VARCHAR(20) NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL,
-    open NUMERIC(20, 8) NOT NULL,
-    high NUMERIC(20, 8) NOT NULL,
-    low NUMERIC(20, 8) NOT NULL,
-    close NUMERIC(20, 8) NOT NULL,
-    volume NUMERIC(30, 8) NOT NULL,
-    UNIQUE(asset, timestamp)
-);
-
-CREATE INDEX idx_asset_timestamp ON spot_ohlcv(asset, timestamp DESC);
-```
-
-### `backfill_state` Table
-
-Tracks backfill progress per asset.
-
-```sql
-CREATE TABLE backfill_state (
-    asset VARCHAR(20) PRIMARY KEY,
-    completed BOOLEAN DEFAULT FALSE,
-    last_fetched_timestamp TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-## Development
+# Problem
 
-### Local Setup (without Docker)
-
-```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install dependencies
-uv pip install -e .
+1. Low Understanding of Crypto Finance
 
-# Start PostgreSQL (or use existing instance)
-docker run -d \
-  --name postgres \
-  -e POSTGRES_USER=crypto \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=portfolio \
-  -p 5432:5432 \
-  postgres:16-alpine
+Most investors lack a proper understanding of key crypto concepts like perpetual futures, DeFi mechanics, and liquidation thresholds — resulting in unexpected exposure and repeated losses.
 
-# Run backfill (one-time)
-python -m src.fetch.backfill
+2. Speculation Over Strategy
 
-# Run API server
-uvicorn src.server:app --reload
+Retail crypto investors often rely on short-term, highly leveraged speculation rather than structured planning.
+In high-volatility environments, this leads to forced liquidations, emotional decisions, and long-term burnout.
 
-# Run scheduler (in separate terminal)
-python -m src.scheduler
-```
+3. Loss → Misinformation → Distrust
 
-### Running Manual Backfill
-
-```bash
-# Inside Docker
-docker-compose exec scheduler python -m src.fetch.backfill
-
-# Force re-backfill (even if completed)
-docker-compose exec scheduler python -m src.fetch.backfill --force
-```
-
-## Operational Considerations
-
-### Rate Limiting
-
-- Default limit: 5000 requests/min (safety margin below Binance's 6000/min)
-- Minimum delay: 100ms between requests
-- Automatic retry with exponential backoff on rate limit errors
-- Semaphore limiting: Max 10 concurrent requests
+Insufficient knowledge leads to losses → losses create misinformation and negative sentiment → that drives people away from learning or re-entering the market.
+This cycle keeps individual investors stuck in a loop of losses, misinformation, and fear — pushing them out of the market before they ever learn how to manage risk properly.
 
-### Gap Detection
+# Solution - Crypto Risk Advisor
 
-The service automatically detects missing candles by:
+“Invest with knowledge. Manage risk. Reflect your preferences.”
 
-1. Generating expected 12h timestamp series
-2. Comparing with actual stored timestamps
-3. Identifying missing ranges
-4. Fetching only missing data
+- Build personalized crypto portfolios using AI-driven risk profiling
+- Combine spot, futures, and DeFi positions to minimize drawdown and increase resilience
+- Perform stress tests based on real crash scenarios (e.g., BTC -30%, UST depeg, FTX collapse)
+- Provide clear explanations for each asset allocation and risk rationale
+- Support natural-language inputs, like:
 
-### Forward-Fill Strategy
+“Max drawdown 15%, only major assets, hedge with stables.”
 
-**Query-time only** (never stored):
 
-- When `?fill=true`: Missing candles filled with last known close price
-- Filled candles marked with `"filled": true`
-- Zero volume for filled candles
-- Preserves data integrity
 
-### Backfill Behavior
+# Core Technology
+- AI Agent that interprets user goals, risk tolerance, and investment intentions
+- Risk Engine powered by Hierarchical Risk Parity (HRP), CVaR, and EWMA covariance models
+- AI ↔ Risk Engine feedback loop for personalized and validated portfolio construction
+- Uses real on-chain, derivatives, and historical market data to quantify risk exposure
+- Explainable output — not a black box
 
-- **Idempotent**: Can be run multiple times safely
-- **Resumable**: Tracks completion per asset
-- **Graceful**: Failed assets don't block others
-- **Range**: Fetches 2 years (730 days) or 90 days minimum
 
-### Scheduler Logic
 
-**Not periodic, but catch-up based:**
+# Target Users
 
-- Every 12 hours, checks latest timestamp per asset
-- Calculates missing range: `(latest + 12h) to now`
-- Fetches only new data
-- Fills any detected gaps
+| User Type                  | Core Needs                                         |
+|----------------------------|----------------------------------------------------|
+| Beginner crypto users      | Guided entry, education, risk control              |
+| Traditional investors      | Risk-adjusted exposure with explainability         |
+| Experienced traders        | Hedge and stress-test frameworks for existing assets |
+| Advisors / wealth managers | Client-ready, explainable crypto allocation tools  |
 
-## Monitoring
 
-### Health Checks
 
-```bash
-# API health
-curl http://localhost:8000/api/v1/health
 
-# Database connection test
-docker-compose exec postgres pg_isready -U crypto -d portfolio
+# Market Opportunity
 
-# Scheduler logs
-docker-compose logs -f scheduler
-```
+| Scope                         | Size                      | Growth       |
+|-------------------------------|---------------------------|--------------|
+| Global Crypto Market (TAM)    | $2.96T (2025)             | 30.1% CAGR   |
+| Crypto Asset Management (SAM) | $1.7B                     | 34.7% CAGR   |
+| Retail crypto users           | 300M (2022) → 800M (2025) | —            |
 
-### Common Issues
+Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
-**Scheduler running multiple times:**
-- ✓ Fixed: Scheduler runs in separate container
-- Each container has its own AsyncIOScheduler instance
 
-**Rate limit exceeded:**
-- Check `BINANCE_RATE_LIMIT_REQUESTS_PER_MINUTE` setting
-- Increase `BINANCE_REQUEST_DELAY_MS`
-- Review logs for concurrent fetch jobs
 
-**Database connection errors:**
-- Ensure PostgreSQL is healthy: `docker-compose ps`
-- Check `DATABASE_URL` in `.env`
-- Wait for database to be ready (healthcheck in docker-compose)
+# Competitive Positioning
 
-## Production Deployment
+| Feature                        | **Our Product** | Wealthfront | Shrimpy | Good Crypto |
+|--------------------------------|-----------------|-------------|---------|-------------|
+| Spot + Futures + DeFi Assets   | ✅              | ❌          | ✅      | ❌          |
+| AI-Based Risk Profiling        | ✅              | ✅          | ❌      | ❌          |
+| Real Stress Testing            | ✅              | ❌          | ❌      | ❌          |
+| Risk Models (HRP / CVaR)       | ✅              | ✅ (MPT)    | ❌      | ❌          |
+| Allocation Explainability      | ✅ ★            | ❌          | ❌      | ❌          |
 
-### Recommendations
 
-1. **Remove development volumes** from `docker-compose.yml`:
-   ```yaml
-   # Remove this line:
-   volumes:
-     - ./src:/app/src
-   ```
 
-2. **Use secrets management**:
-   - Store `API_KEY` in Docker secrets or vault
-   - Use environment-specific `.env` files
 
-3. **CORS configuration**:
-   - Update `allow_origins` in `src/server.py` to specific domains
+# Why We Win
+- Risk-first, not alpha-first — no prediction, no hype
+- Covers full crypto stack (spot, futures, lending, staking)
+- Converts risk metrics into plain-language guidance
+- Makes users stay in the game with discipline — not gamble into losses
 
-4. **Monitoring & Alerting**:
-   - Add Prometheus metrics export
-   - Set up alerts for fetch failures
-   - Monitor database growth
 
-5. **Scaling**:
-   - API can scale horizontally (stateless)
-   - Scheduler should run as **single instance**
-   - Use managed PostgreSQL for production
 
-## License
+# Business Model
+- AI usage credits (core revenue)
+- Optional affiliate fees from spot assets/DeFi integrations
+- Premium subscription for alerts, automated hedging, and backtesting features
 
-[Your License Here]
 
-## Contributing
 
-[Contributing Guidelines]
+# Go-to-Market Strategy
+1. Working professionals — LinkedIn, Blind performance ads
+2. Young crypto newcomers — YouTube Shorts, Instagram Reels
+3. Credibility building — interviews, case studies, fund manager insights
+4. Free-to-Paid flow — Risk Dashboard (free) → Hedging and scenarios (paid)
+
+
+
+# 🔗 Links
+- Pitch Deck → ...
+- Product Demo → ...
+- Risk Model Docs → ...
+
+
