@@ -1,3 +1,7 @@
+# DEMO LINK!!!
+Demo link has changed: https://cognizably-nondoctrinal-crissy.ngrok-free.app/
+I'm really sorry for the inconvenience 😭
+
 # LowerBound
 
 Customized crypto currency portfolio suggestionbased on AI risk analysis
