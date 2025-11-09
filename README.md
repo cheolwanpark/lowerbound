@@ -101,7 +101,6 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
 # 🔗 Links
 - [Pitch Deck](./BrainRot.pdf)
-- Product Demo → ...
-- Risk Model Docs → ...
+- [Product Demo]
 
 
