@@ -1,6 +1,7 @@
-# Crypto Risk Advisor
+# LowerBound
 
-AI-powered risk management for smarter, safer crypto investing.
+Customized crypto currency portfolio suggestionbased on AI risk analysis
+
 No price predictions — just knowledge, risk control, and confidence.
 
 
@@ -20,7 +21,7 @@ In high-volatility environments, this leads to forced liquidations, emotional de
 Insufficient knowledge leads to losses → losses create misinformation and negative sentiment → that drives people away from learning or re-entering the market.
 This cycle keeps individual investors stuck in a loop of losses, misinformation, and fear — pushing them out of the market before they ever learn how to manage risk properly.
 
-# Solution - Crypto Risk Advisor
+# Solution - LowerBound
 
 “Invest with knowledge. Manage risk. Reflect your preferences.”
 
@@ -36,7 +37,6 @@ This cycle keeps individual investors stuck in a loop of losses, misinformation,
 
 # Core Technology
 - AI Agent that interprets user goals, risk tolerance, and investment intentions
-- Risk Engine powered by Hierarchical Risk Parity (HRP), CVaR, and EWMA covariance models
 - AI ↔ Risk Engine feedback loop for personalized and validated portfolio construction
 - Uses real on-chain, derivatives, and historical market data to quantify risk exposure
 - Explainable output — not a black box
@@ -74,7 +74,7 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 | Spot + Futures + DeFi Assets   | ✅              | ❌          | ✅      | ❌          |
 | AI-Based Risk Profiling        | ✅              | ✅          | ❌      | ❌          |
 | Real Stress Testing            | ✅              | ❌          | ❌      | ❌          |
-| Risk Models (HRP / CVaR)       | ✅              | ✅ (MPT)    | ❌      | ❌          |
+| Risk Models                    | ✅              | ✅ (MPT)    | ❌      | ❌          |
 | Allocation Explainability      | ✅ ★            | ❌          | ❌      | ❌          |
 
 
@@ -90,21 +90,17 @@ Sources: Mordor Intelligence, BCG, a16zcrypto, EY Parthenon
 
 # Business Model
 - AI usage credits (core revenue)
-- Optional affiliate fees from spot assets/DeFi integrations
-- Premium subscription for alerts, automated hedging, and backtesting features
-
 
 
 # Go-to-Market Strategy
 1. Working professionals — LinkedIn, Blind performance ads
 2. Young crypto newcomers — YouTube Shorts, Instagram Reels
 3. Credibility building — interviews, case studies, fund manager insights
-4. Free-to-Paid flow — Risk Dashboard (free) → Hedging and scenarios (paid)
 
 
 
 # 🔗 Links
-- Pitch Deck → ...
+- [Pitch Deck](./BrainRot.pdf)
 - Product Demo → ...
 - Risk Model Docs → ...
 
