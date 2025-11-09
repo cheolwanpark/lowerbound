@@ -1,0 +1,14 @@
+{
+  "positions": [
+    {
+      "asset": "BTC",
+      "quantity": 1.0,
+      "position_type": "spot",
+      "entry_price": 90000,
+      "leverage": 1.0
+    }
+  ],
+  "lookback_days": 30,
+  "graph_types": ["performance_vs_baseline"],
+  "initial_timestamp": "2025-01-10T00:00:00Z"
+}
