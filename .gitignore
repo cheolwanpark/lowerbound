@@ -36,3 +36,9 @@ htmlcov/
 # Database
 *.db
 *.sqlite
+
+# Next.js
+.next/
+out/
+build/
+node_modules/
