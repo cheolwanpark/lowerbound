@@ -194,12 +194,12 @@ class ChatAgent:
             success=True,
         )
 
-    def _format_history(self, messages: list[ChatMessage], current_portfolio: Optional[dict] = None) -> str:
+    def _format_history(self, messages: list[ChatMessage], current_portfolio: Optional[list] = None) -> str:
         """Format chat history for prompt with complete context.
 
         Args:
             messages: List of chat messages
-            current_portfolio: Current portfolio state (optional)
+            current_portfolio: Current portfolio state as list of positions (optional)
 
         Returns:
             Formatted history string with messages, tool calls, reasoning, and portfolio state
@@ -247,15 +247,24 @@ class ChatAgent:
             lines.append("CURRENT PORTFOLIO STATE:")
             lines.append("="*60)
 
-            positions = current_portfolio.get("positions", [])
-            if positions:
-                lines.append(f"\nPortfolio has {len(positions)} position(s):")
-                for i, pos in enumerate(positions, 1):
-                    asset = pos.get("asset", "Unknown")
-                    position_type = pos.get("position_type", "unknown")
-                    quantity = pos.get("quantity", 0)
-                    leverage = pos.get("leverage", 1.0)
-                    entry_price = pos.get("entry_price")
+            # current_portfolio is already a list of positions
+            if isinstance(current_portfolio, list) and len(current_portfolio) > 0:
+                lines.append(f"\nPortfolio has {len(current_portfolio)} position(s):")
+                for i, pos in enumerate(current_portfolio, 1):
+                    # Handle both dict and PortfolioPosition objects
+                    if isinstance(pos, dict):
+                        asset = pos.get("asset", "Unknown")
+                        position_type = pos.get("position_type", "unknown")
+                        quantity = pos.get("quantity", 0)
+                        leverage = pos.get("leverage", 1.0)
+                        entry_price = pos.get("entry_price")
+                    else:
+                        # PortfolioPosition object
+                        asset = getattr(pos, "asset", "Unknown")
+                        position_type = getattr(pos, "position_type", "unknown")
+                        quantity = getattr(pos, "quantity", 0)
+                        leverage = getattr(pos, "leverage", 1.0)
+                        entry_price = getattr(pos, "entry_price", None)
 
                     pos_line = f"  {i}. {asset} - {position_type}, qty: {quantity}"
                     if leverage and leverage != 1.0:
@@ -263,11 +272,6 @@ class ChatAgent:
                     if entry_price:
                         pos_line += f", entry: ${entry_price:,.2f}"
                     lines.append(pos_line)
-
-                # Add explanation if present
-                explanation = current_portfolio.get("explanation", "")
-                if explanation:
-                    lines.append(f"\nPortfolio explanation: {explanation[:200]}...")
             else:
                 lines.append("\nNo portfolio has been set yet.")
 
